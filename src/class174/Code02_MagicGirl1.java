@@ -22,151 +22,115 @@ public class Code02_MagicGirl1 {
 
 	public static int MAXN = 300002;
 	public static int MAXB = 601;
-	public static int POW2 = 9;
-	public static int BLEN = 1 << POW2;
-	public static int OFFSET = BLEN - 1;
+	public static int POW = 9;
+	public static int OFFSET = (1 << POW) - 1;
 	public static int n, m;
 
 	public static int[] arr = new int[MAXN];
-	public static int[] pos = new int[MAXN];
-
 	public static int[] op = new int[MAXN];
 	public static int[] x = new int[MAXN];
 	public static int[] y = new int[MAXN];
 	public static int[] v = new int[MAXN];
 
-	public static int[] arrq = new int[MAXN];
+	// pos[1..cntp]是当前序列块的下标
+	// qid[1..cntq]是整包结算的查询编号
+	public static int[] pos = new int[MAXN];
+	public static int[] qid = new int[MAXN];
+	public static int cntp;
+	public static int cntq;
+
+	// 基数排序
 	public static int[] cntv = new int[MAXB];
 	public static int[] help = new int[MAXN];
-	public static int siz;
 
+	// 双链表
 	public static int[] last = new int[MAXN];
 	public static int[] next = new int[MAXN];
 
+	// 每条查询的答案信息
 	public static int[] pre = new int[MAXN];
 	public static int[] suf = new int[MAXN];
 	public static int[] len = new int[MAXN];
 	public static long[] ans = new long[MAXN];
 
-	public static void mergeAns(int i, int rpre, int rsuf, int rlen, int rans) {
-		ans[i] += rans + 1L * suf[i] * rpre;
-		if (pre[i] == len[i]) {
-			pre[i] += rpre;
-		}
-		if (rsuf == rlen) {
-			suf[i] += rsuf;
-		} else {
-			suf[i] = rsuf;
-		}
-		len[i] += rlen;
-	}
-
-	// 根据arr[pos[i]]的值，对pos[l..r]进行双指针快排
-	public static void quickSort(int l, int r) {
-		if (l >= r) return;
-		int i = l, j = r, pivot = arr[pos[(l + r) >> 1]], tmp;
-		while (i <= j) {
-			while (arr[pos[i]] < pivot) i++;
-			while (arr[pos[j]] > pivot) j--;
-			if (i <= j) {
-				tmp = pos[i]; pos[i] = pos[j]; pos[j] = tmp;
-				i++; j--;
-			}
-		}
-		quickSort(l, j);
-		quickSort(i, r);
-	}
-
-	// 根据查询任务的v值，对查询任务的编号进行基数排序
-	public static void radixSort() {
+	// 讲解028 - 基数排序，不会的话去看课
+	// idx[1..siz]都是编号，编号根据val[编号]的值排序
+	// val[编号]的高位 = val[编号] >> POW
+	// val[编号]的低位 = val[编号] & OFFSET
+	public static void radix(int[] idx, int[] val, int siz) {
 		Arrays.fill(cntv, 0);
-		for (int i = 1; i <= siz; i++) cntv[v[arrq[i]] & OFFSET]++;
+		for (int i = 1; i <= siz; i++) cntv[val[idx[i]] & OFFSET]++;
 		for (int i = 1; i < MAXB; i++) cntv[i] += cntv[i - 1];
-		for (int i = siz; i >= 1; i--) help[cntv[v[arrq[i]] & OFFSET]--] = arrq[i];
-		for (int i = 1; i <= siz; i++) arrq[i] = help[i];
+		for (int i = siz; i >= 1; i--) help[cntv[val[idx[i]] & OFFSET]--] = idx[i];
+		for (int i = 1; i <= siz; i++) idx[i] = help[i];
 		Arrays.fill(cntv, 0);
-		for (int i = 1; i <= siz; i++) cntv[v[arrq[i]] >> POW2]++;
+		for (int i = 1; i <= siz; i++) cntv[val[idx[i]] >> POW]++;
 		for (int i = 1; i < MAXB; i++) cntv[i] += cntv[i - 1];
-		for (int i = siz; i >= 1; i--) help[cntv[v[arrq[i]] >> POW2]--] = arrq[i];
-		for (int i = 1; i <= siz; i++) arrq[i] = help[i];
+		for (int i = siz; i >= 1; i--) help[cntv[val[idx[i]] >> POW]--] = idx[i];
+		for (int i = 1; i <= siz; i++) idx[i] = help[i];
 	}
 
+	// 查询的答案信息 pre[i]、suf[i]、len[i]、ans[i]
+	// 当前块答案信息 curPre、curSuf、curLen、curAns
+	// 查询的答案信息 合并 当前块答案信息
+	public static void merge(int i, int curPre, int curSuf, int curLen, int curAns) {
+		ans[i] += 1L * suf[i] * curPre + curAns;
+		pre[i] = pre[i] + (pre[i] == len[i] ? curPre : 0);
+		suf[i] = curSuf + (curSuf == curLen ? suf[i] : 0);
+		len[i] += curLen;
+	}
+
+	// 整包结算
+	// qid[1..cntq]是查询编号，每条查询整包[l..r]
+	// 根据序列块的数字状况，更新每个查询的答案信息
 	public static void calc(int l, int r) {
-		radixSort();
 		for (int i = l; i <= r; i++) {
+			pos[++cntp] = i;
 			last[i] = i - 1;
 			next[i] = i + 1;
 		}
-		int rpre = 0, rsuf = 0, rlen = r - l + 1, rans = 0;
-		int k = 1;
-		for (int i = l, idx; i <= r; i++) {
-			idx = pos[i];
-			for (; k <= siz && v[arrq[k]] < arr[idx]; k++) {
-				mergeAns(arrq[k], rpre, rsuf, rlen, rans);
-			}
-			if (last[idx] == l - 1) {
-				rpre += next[idx] - idx;
-			}
-			if (next[idx] == r + 1) {
-				rsuf += idx - last[idx];
-			}
-			rans += 1L * (idx - last[idx]) * (next[idx] - idx);
-			last[next[idx]] = last[idx];
-			next[last[idx]] = next[idx];
-		}
-		for (; k <= siz; k++) {
-			mergeAns(arrq[k], rpre, rsuf, rlen, rans);
-		}
-		siz = 0;
-	}
-
-	public static void update(int qi, int l, int r) {
-		int jobi = x[qi], jobv = v[qi];
-		if (l <= jobi && jobi <= r) {
-			calc(l, r);
-			arr[jobi] = jobv;
-			int find = 0;
-			for (int i = l; i <= r; i++) {
-				if (pos[i] == jobi) {
-					find = i;
-					break;
+		radix(pos, arr, cntp);
+		radix(qid, v, cntq);
+		int curPre = 0, curSuf = 0, curLen = r - l + 1, curAns = 0;
+		for (int i = 1, j = 1, idx; i <= cntq; i++) {
+			while (j <= cntp && arr[pos[j]] <= v[qid[i]]) {
+				idx = pos[j];
+				if (last[idx] == l - 1) {
+					curPre += next[idx] - idx;
 				}
-			}
-			int tmp;
-			for (int i = find; i < r && arr[pos[i]] > arr[pos[i + 1]]; i++) {
-				tmp = pos[i]; pos[i] = pos[i + 1]; pos[i + 1] = tmp;
-			}
-			for (int i = find; i > l && arr[pos[i - 1]] > arr[pos[i]]; i--) {
-				tmp = pos[i - 1]; pos[i - 1] = pos[i]; pos[i] = tmp;
-			}
-		}
-	}
-
-	public static void query(int qi, int l, int r) {
-		int jobl = x[qi], jobr = y[qi], jobv = v[qi];
-		if (jobl <= l && r <= jobr) {
-			arrq[++siz] = qi;
-		} else {
-			for (int i = Math.max(jobl, l); i <= Math.min(jobr, r); i++) {
-				if (arr[i] <= jobv) {
-					mergeAns(qi, 1, 1, 1, 1);
-				} else {
-					mergeAns(qi, 0, 0, 1, 0);
+				if (next[idx] == r + 1) {
+					curSuf += idx - last[idx];
 				}
+				curAns += 1L * (idx - last[idx]) * (next[idx] - idx);
+				last[next[idx]] = last[idx];
+				next[last[idx]] = next[idx];
+				j++;
 			}
+			merge(qid[i], curPre, curSuf, curLen, curAns);
 		}
+		cntp = cntq = 0;
 	}
 
+	// 序列块[l..r]，处理一遍所有的操作(单改 + 查询)
 	public static void compute(int l, int r) {
-		for (int i = l; i <= r; i++) {
-			pos[i] = i;
-		}
-		quickSort(l, r);
 		for (int qi = 1; qi <= m; qi++) {
 			if (op[qi] == 1) {
-				update(qi, l, r);
+				if (l <= x[qi] && x[qi] <= r) {
+					calc(l, r);
+					arr[x[qi]] = v[qi];
+				}
 			} else {
-				query(qi, l, r);
+				if (x[qi] <= l && r <= y[qi]) {
+					qid[++cntq] = qi;
+				} else {
+					for (int i = Math.max(x[qi], l); i <= Math.min(y[qi], r); i++) {
+						if (arr[i] <= v[qi]) {
+							merge(qi, 1, 1, 1, 1);
+						} else {
+							merge(qi, 0, 0, 1, 0);
+						}
+					}
+				}
 			}
 		}
 		calc(l, r);
@@ -190,10 +154,11 @@ public class Code02_MagicGirl1 {
 				v[i] = in.nextInt();
 			}
 		}
-		int bnum = (n + BLEN - 1) / BLEN;
+		int blen = 1 << POW;
+		int bnum = (n + blen - 1) / blen;
 		for (int i = 1, l, r; i <= bnum; i++) {
-			l = (i - 1) * BLEN + 1;
-			r = Math.min(i * BLEN, n);
+			l = (i - 1) * blen + 1;
+			r = Math.min(i * blen, n);
 			compute(l, r);
 		}
 		for (int i = 1; i <= m; i++) {

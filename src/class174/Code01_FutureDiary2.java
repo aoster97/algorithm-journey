@@ -36,16 +36,15 @@ package class174;
 //const int MAXB = 401;
 //int n, m;
 //int arr[MAXN];
-//int tmp[MAXN];
 //
 //int blen, bnum;
 //int bi[MAXN];
 //int bl[MAXB];
 //int br[MAXB];
 //
-//int idxrt[MAXN];
-//int valrt[MAXB][MAXN];
-//int rtval[MAXB][MAXN];
+//int idxset[MAXN];
+//int valset[MAXB][MAXN];
+//int setval[MAXB][MAXN];
 //
 //int sum1[MAXB][MAXB];
 //int sum2[MAXB][MAXN];
@@ -54,29 +53,28 @@ package class174;
 //
 //void build(int b) {
 //    for (int i = 1; i <= blen; i++) {
-//        valrt[b][rtval[b][i]] = 0;
+//        valset[b][setval[b][i]] = 0;
 //    }
-//    int cnt = 0;
-//    for (int i = bl[b]; i <= br[b]; i++) {
-//        if (valrt[b][arr[i]] == 0) {
-//            cnt++;
-//            valrt[b][arr[i]] = cnt;
-//            rtval[b][cnt] = arr[i];
+//    for (int i = bl[b], s = 0; i <= br[b]; i++) {
+//        if (valset[b][arr[i]] == 0) {
+//            s++;
+//            valset[b][arr[i]] = s;
+//            setval[b][s] = arr[i];
 //        }
-//        idxrt[i] = valrt[b][arr[i]];
+//        idxset[i] = valset[b][arr[i]];
 //    }
+//}
+//
+//void lazy(int b, int x, int y) {
+//    valset[b][y] = valset[b][x];
+//    setval[b][valset[b][x]] = y;
+//    valset[b][x] = 0;
 //}
 //
 //void down(int b) {
 //    for (int i = bl[b]; i <= br[b]; i++) {
-//        arr[i] = rtval[b][idxrt[i]];
+//        arr[i] = setval[b][idxset[i]];
 //    }
-//}
-//
-//void xToy(int b, int x, int y) {
-//    valrt[b][y] = valrt[b][x];
-//    rtval[b][valrt[b][x]] = y;
-//    valrt[b][x] = 0;
 //}
 //
 //void innerUpdate(int l, int r, int x, int y) {
@@ -117,7 +115,7 @@ package class174;
 //                    sum1[b][bi[x]] -= sum2[b][x];
 //                    sum2[b][y] += sum2[b][x];
 //                    sum2[b][x] = 0;
-//                    xToy(b, x, y);
+//                    lazy(b, x, y);
 //                }
 //            }
 //        }
@@ -130,56 +128,62 @@ package class174;
 //    }
 //}
 //
+//void addCnt(int l, int r) {
+//    for (int i = l; i <= r; i++) {
+//        cnt1[bi[arr[i]]]++;
+//        cnt2[arr[i]]++;
+//    }
+//}
+//
+//void clearCnt(int l, int r) {
+//    for (int i = l; i <= r; i++) {
+//        cnt1[bi[arr[i]]] = cnt2[arr[i]] = 0;
+//    }
+//}
+//
 //int query(int l, int r, int k) {
 //    int ans = 0;
-//    if (bi[l] == bi[r]) {
+//    bool inner = bi[l] == bi[r];
+//    if (inner) {
 //        down(bi[l]);
-//        for (int i = l; i <= r; i++) {
-//            tmp[i] = arr[i];
-//        }
-//        sort(tmp + l, tmp + r + 1);
-//        ans = tmp[l + k - 1];
+//        addCnt(l, r);
 //    } else {
 //        down(bi[l]);
 //        down(bi[r]);
-//        for (int i = l; i <= br[bi[l]]; i++) {
-//            cnt1[bi[arr[i]]]++;
-//            cnt2[arr[i]]++;
+//        addCnt(l, br[bi[l]]);
+//        addCnt(bl[bi[r]], r);
+//    }
+//    int sumCnt = 0;
+//    int vblock = 0;
+//    for (int b = 1; b <= bi[MAXN - 1]; b++) {
+//        int cnt = cnt1[b] + (inner ? 0 : sum1[bi[r] - 1][b] - sum1[bi[l]][b]);
+//        if (sumCnt + cnt >= k) {
+//            vblock = b;
+//            break;
+//        } else {
+//            sumCnt += cnt;
 //        }
-//        for (int i = bl[bi[r]]; i <= r; i++) {
-//            cnt1[bi[arr[i]]]++;
-//            cnt2[arr[i]]++;
+//    }
+//    for (int v = (vblock - 1) * blen + 1; v <= vblock * blen; v++) {
+//        int cnt = cnt2[v] + (inner ? 0 : sum2[bi[r] - 1][v] - sum2[bi[l]][v]);
+//        if (sumCnt + cnt >= k) {
+//            ans = v;
+//            break;
+//        } else {
+//            sumCnt += cnt;
 //        }
-//        int sumCnt = 0, vblock = 0;
-//        for (int b = 1; b <= bi[MAXN - 1]; b++) {
-//            int blockCnt = cnt1[b] + sum1[bi[r] - 1][b] - sum1[bi[l]][b];
-//            if (sumCnt + blockCnt < k) {
-//                sumCnt += blockCnt;
-//            } else {
-//                vblock = b;
-//                break;
-//            }
-//        }
-//        for (int v = (vblock - 1) * blen + 1; v <= vblock * blen; v++) {
-//            int valCnt = cnt2[v] + sum2[bi[r] - 1][v] - sum2[bi[l]][v];
-//            if (sumCnt + valCnt >= k) {
-//                ans = v;
-//                break;
-//            }
-//            sumCnt += valCnt;
-//        }
-//        for (int i = l; i <= br[bi[l]]; i++) {
-//            cnt1[bi[arr[i]]] = cnt2[arr[i]] = 0;
-//        }
-//        for (int i = bl[bi[r]]; i <= r; i++) {
-//            cnt1[bi[arr[i]]] = cnt2[arr[i]] = 0;
-//        }
+//    }
+//    if (inner) {
+//        clearCnt(l, r);
+//    } else {
+//        clearCnt(l, br[bi[l]]);
+//        clearCnt(bl[bi[r]], r);
 //    }
 //    return ans;
 //}
 //
 //void prepare() {
-//    blen = (int)sqrt(n);
+//    blen = 300;
 //    bnum = (n + blen - 1) / blen;
 //    for (int i = 1; i < MAXN; i++) {
 //        bi[i] = (i - 1) / blen + 1;

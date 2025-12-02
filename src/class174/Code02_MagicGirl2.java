@@ -14,25 +14,69 @@ package class174;
 //
 //using namespace std;
 //
+//namespace fastio {
+//    static const int SZ = 1 << 20;
+//    char ibuf[SZ], *is = ibuf, *ie = ibuf;
+//    inline int gc() {
+//        if (is == ie) {
+//            size_t len = fread(ibuf, 1, SZ, stdin);
+//            if (len == 0) return -1;
+//            is = ibuf;
+//            ie = ibuf + len;
+//        }
+//        return *is++;
+//    }
+//    template <typename T>
+//    inline bool readInt(T& x) {
+//        int c = gc(); if (c == -1) return false;
+//        bool neg = false;
+//        while (c != '-' && (c < '0' || c > '9')) { c = gc(); if (c == -1) return false; }
+//        if (c == '-') { neg = true; c = gc(); }
+//        x = 0;
+//        while (c >= '0' && c <= '9') { x = x * 10 + (c & 15); c = gc(); }
+//        if (neg) x = -x;
+//        return true;
+//    }
+//    char obuf[SZ]; char* op = obuf;
+//    inline void flush() {
+//        fwrite(obuf, 1, op - obuf, stdout);
+//        op = obuf;
+//    }
+//    template <typename T>
+//    inline void writeInt(T x, char end = '\n') {
+//        if (op > obuf + SZ - 256) flush();
+//        if (x == 0) { *op++ = '0'; *op++ = end; return; }
+//        if (x < 0) { *op++ = '-'; x = -x; }
+//        char s[24]; int n = 0;
+//        while (x) { s[n++] = char('0' + x % 10); x /= 10; }
+//        while (n) *op++ = s[--n];
+//        *op++ = end;
+//    }
+//}
+//
+//using fastio::readInt;
+//using fastio::writeInt;
+//using fastio::flush;
+//
 //const int MAXN = 300002;
 //const int MAXB = 601;
-//const int POW2 = 9;
-//const int BLEN = 1 << POW2;
-//const int OFFSET = BLEN - 1;
+//const int POW = 9;
+//const int OFFSET = (1 << POW) - 1;
 //int n, m;
 //
 //int arr[MAXN];
-//int pos[MAXN];
-//
 //int op[MAXN];
 //int x[MAXN];
 //int y[MAXN];
 //int v[MAXN];
 //
-//int arrq[MAXN];
+//int pos[MAXN];
+//int qid[MAXN];
+//int cntp;
+//int cntq;
+//
 //int cntv[MAXB];
 //int help[MAXN];
-//int siz;
 //
 //int lst[MAXN];
 //int nxt[MAXN];
@@ -42,137 +86,106 @@ package class174;
 //int len[MAXN];
 //long long ans[MAXN];
 //
-//inline void mergeAns(int i, int rpre, int rsuf, int rlen, int rans) {
-//    ans[i] += rans + 1LL * suf[i] * rpre;
-//    if (pre[i] == len[i]) {
-//        pre[i] += rpre;
-//    }
-//    if (rsuf == rlen) {
-//        suf[i] += rsuf;
-//    } else {
-//        suf[i] = rsuf;
-//    }
-//    len[i] += rlen;
+//inline void radix(int* idx, int* val, int siz) {
+//    memset(cntv, 0, sizeof(int) * MAXB);
+//    for (int i = 1; i <= siz; i++) cntv[val[idx[i]] & OFFSET]++;
+//    for (int i = 1; i < MAXB; i++) cntv[i] += cntv[i - 1];
+//    for (int i = siz; i >= 1; i--) help[cntv[val[idx[i]] & OFFSET]--] = idx[i];
+//    memcpy(idx + 1, help + 1, siz * sizeof(int));
+//    memset(cntv, 0, sizeof(int) * MAXB);
+//    for (int i = 1; i <= siz; i++) cntv[val[idx[i]] >> POW]++;
+//    for (int i = 1; i < MAXB; i++) cntv[i] += cntv[i - 1];
+//    for (int i = siz; i >= 1; i--) help[cntv[val[idx[i]] >> POW]--] = idx[i];
+//    memcpy(idx + 1, help + 1, siz * sizeof(int));
 //}
 //
-//inline void radixSort() {
-//    fill(cntv, cntv + MAXB, 0);
-//    for (int i = 1; i <= siz; i++) cntv[v[arrq[i]] & OFFSET]++;
-//    for (int i = 1; i < MAXB; i++) cntv[i] += cntv[i - 1];
-//    for (int i = siz; i >= 1; i--) help[cntv[v[arrq[i]] & OFFSET]--] = arrq[i];
-//    for (int i = 1; i <= siz; i++) arrq[i] = help[i];
-//    fill(cntv, cntv + MAXB, 0);
-//    for (int i = 1; i <= siz; i++) cntv[v[arrq[i]] >> POW2]++;
-//    for (int i = 1; i < MAXB; i++) cntv[i] += cntv[i - 1];
-//    for (int i = siz; i >= 1; i--) help[cntv[v[arrq[i]] >> POW2]--] = arrq[i];
-//    for (int i = 1; i <= siz; i++) arrq[i] = help[i];
+//inline void merge(int i, int curPre, int curSuf, int curLen, int curAns) {
+//    ans[i] += 1L * suf[i] * curPre + curAns;
+//    pre[i] = pre[i] + (pre[i] == len[i] ? curPre : 0);
+//    suf[i] = curSuf + (curSuf == curLen ? suf[i] : 0);
+//    len[i] += curLen;
 //}
 //
 //void calc(int l, int r) {
-//    radixSort();
 //    for (int i = l; i <= r; i++) {
+//        pos[++cntp] = i;
 //        lst[i] = i - 1;
 //        nxt[i] = i + 1;
 //    }
-//    int rpre = 0, rsuf = 0, rlen = r - l + 1, rans = 0;
-//    int k = 1;
-//    for (int i = l, idx; i <= r; i++) {
-//        idx = pos[i];
-//        for(; k <= siz && v[arrq[k]] < arr[idx]; k++) {
-//            mergeAns(arrq[k], rpre, rsuf, rlen, rans);
-//        }
-//        if (lst[idx] == l - 1) {
-//            rpre += nxt[idx] - idx;
-//        }
-//        if (nxt[idx] == r + 1) {
-//            rsuf += idx - lst[idx];
-//        }
-//        rans += 1LL * (idx - lst[idx]) * (nxt[idx] - idx);
-//        lst[nxt[idx]] = lst[idx];
-//        nxt[lst[idx]] = nxt[idx];
-//    }
-//    for(; k <= siz; k++) {
-//        mergeAns(arrq[k], rpre, rsuf, rlen, rans);
-//    }
-//    siz = 0;
-//}
-//
-//inline void update(int qi, int l, int r) {
-//    int jobi = x[qi], jobv = v[qi];
-//    if (l <= jobi && jobi <= r) {
-//        calc(l, r);
-//        arr[jobi] = jobv;
-//        int find = 0;
-//        for (int i = l; i <= r; i++) {
-//            if (pos[i] == jobi) {
-//                find = i;
-//                break;
+//    radix(pos, arr, cntp);
+//    radix(qid, v, cntq);
+//    int curPre = 0, curSuf = 0, curLen = r - l + 1, curAns = 0;
+//    for (int i = 1, j = 1, idx; i <= cntq; i++) {
+//        while (j <= cntp && arr[pos[j]] <= v[qid[i]]) {
+//            idx = pos[j];
+//            if (lst[idx] == l - 1) {
+//                curPre += nxt[idx] - idx;
 //            }
-//        }
-//        for (int i = find; i < r && arr[pos[i]] > arr[pos[i + 1]]; i++) {
-//            swap(pos[i], pos[i + 1]);
-//        }
-//        for (int i = find; i > l && arr[pos[i - 1]] > arr[pos[i]]; i--) {
-//            swap(pos[i - 1], pos[i]);
-//        }
-//    }
-//}
-//
-//inline void query(int qi, int l, int r) {
-//    int jobl = x[qi], jobr = y[qi], jobv = v[qi];
-//    if (jobl <= l && r <= jobr) {
-//        arrq[++siz] = qi;
-//    } else {
-//        for (int i = max(jobl, l); i <= min(jobr, r); i++) {
-//            if (arr[i] <= jobv) {
-//                mergeAns(qi, 1, 1, 1, 1);
-//            } else {
-//                mergeAns(qi, 0, 0, 1, 0);
+//            if (nxt[idx] == r + 1) {
+//                curSuf += idx - lst[idx];
 //            }
+//            curAns += 1L * (idx - lst[idx]) * (nxt[idx] - idx);
+//            lst[nxt[idx]] = lst[idx];
+//            nxt[lst[idx]] = nxt[idx];
+//            j++;
 //        }
+//        merge(qid[i], curPre, curSuf, curLen, curAns);
 //    }
+//    cntp = cntq = 0;
 //}
 //
 //void compute(int l, int r) {
-//    for (int i = l; i <= r; i++) {
-//        pos[i] = i;
-//    }
-//    sort(pos + l, pos + r + 1, [&](int a, int b) {return arr[a] < arr[b];});
 //    for (int qi = 1; qi <= m; qi++) {
 //        if (op[qi] == 1) {
-//            update(qi, l, r);
+//            if (l <= x[qi] && x[qi] <= r) {
+//                calc(l, r);
+//                arr[x[qi]] = v[qi];
+//            }
 //        } else {
-//            query(qi, l, r);
+//            if (x[qi] <= l && r <= y[qi]) {
+//                qid[++cntq] = qi;
+//            } else {
+//                for (int i = max(x[qi], l); i <= min(y[qi], r); i++) {
+//                    if (arr[i] <= v[qi]) {
+//                        merge(qi, 1, 1, 1, 1);
+//                    } else {
+//                        merge(qi, 0, 0, 1, 0);
+//                    }
+//                }
+//            }
 //        }
 //    }
 //    calc(l, r);
 //}
 //
 //int main() {
-//    ios::sync_with_stdio(false);
-//    cin.tie(nullptr);
-//    cin >> n >> m;
+//    readInt(n);
+//    readInt(m);
 //    for (int i = 1; i <= n; i++) {
-//        cin >> arr[i];
+//        readInt(arr[i]);
 //    }
 //    for (int i = 1; i <= m; i++) {
-//        cin >> op[i] >> x[i];
+//        readInt(op[i]);
+//        readInt(x[i]);
 //        if (op[i] == 1) {
-//            cin >> v[i];
+//            readInt(v[i]);
 //        } else {
-//            cin >> y[i] >> v[i];
+//            readInt(y[i]);
+//            readInt(v[i]);
 //        }
 //    }
-//    int bnum = (n + BLEN - 1) / BLEN;
+//    int blen = 1 << POW;
+//    int bnum = (n + blen - 1) / blen;
 //    for (int i = 1, l, r; i <= bnum; i++) {
-//        l = (i - 1) * BLEN + 1;
-//        r = min(i * BLEN, n);
+//        l = (i - 1) * blen + 1;
+//        r = min(i * blen, n);
 //        compute(l, r);
 //    }
 //    for (int i = 1; i <= m; i++) {
 //        if (op[i] == 2) {
-//            cout << ans[i] << '\n';
+//            writeInt(ans[i]);
 //        }
 //    }
+//    flush();
 //    return 0;
 //}
